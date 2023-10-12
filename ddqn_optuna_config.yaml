@@ -1,0 +1,125 @@
+save_best: False
+plot_agents: False
+collect_stats: False
+
+log_dir: ./tmp
+video_dir: ${log_dir}/videos
+
+hydra:
+  run:
+    dir: ${log_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+optuna:
+  study:
+    _target_: optuna.create_study
+    study_name: ddqn_lunar
+    direction: maximize
+    pruner:
+      _target_: optuna.pruners.MedianPruner
+      n_startup_trials: 5
+      n_warmup_steps: 5
+      interval_steps: 1
+  optimize:
+    n_trials: 60
+    timeout: 3600
+    n_jobs: 1
+
+logger:
+  classname: bbrl.utils.logger.WandbLogger
+  project: "ddqn_lunar"
+  group: "test_optuna_optim"
+  tags: "test_lunar_ddqn"
+  job_type: test
+  log_dir: ${log_dir}
+  cache_size: 10000
+  every_n_seconds: 10
+  verbose: False
+
+env:
+  identifier: LunarLander-v2
+  render_mode: rgb_array
+  name: env
+
+gym_env_train:
+  classname: __main__.make_env
+  identifier: ${env.identifier}
+  render_mode: ${env.render_mode}
+  autoreset: True
+
+gym_env_eval:
+  classname: __main__.make_env
+  identifier: ${env.identifier}
+  render_mode: ${env.render_mode}
+  autoreset: False
+
+algorithm:
+  architecture:
+    hidden_sizes:
+      suggest_type: categorical
+      choices:
+        - [64, 64]
+        - [128, 128]
+        - [256, 256]
+  seed:
+    train: 325
+    eval: 983
+    q: 123
+    explorer: 456
+    torch: 789
+  explorer:
+    epsilon_start:
+      suggest_type: float
+      low: 0.1
+      high: 1.0
+    epsilon_end:
+      suggest_type: float
+      low: 0.01
+      high : 0.1
+    decay:
+      suggest_type: float
+      low: 0.995
+      high: 0.999
+  buffer:
+    max_size:
+      suggest_type: int
+      low: 5000
+      high: 60000
+    batch_size:
+      suggest_type: int
+      low: 32
+      high: 512
+    learning_starts:
+      suggest_type: int
+      low: 1000
+      high: 5000
+  target_critic_update_interval:
+    suggest_type: int
+    low: 10
+    high: 100
+  max_grad_norm:
+    suggest_type: float
+    low: 0.5
+    high: 2.0
+  n_envs_eval: 10
+  n_envs_train: 5
+  n_steps_train: 50
+  optim_n_updates:
+    suggest_type: int
+    low: 1
+    high: 10
+  discount_factor:
+    suggest_type: float
+    low: 0.99
+    high: 0.999
+
+  n_steps: 100_000
+  eval_interval: 1000
+
+optimizer:
+  classname: torch.optim.Adam
+  lr:
+    suggest_type: categorical
+    choices:
+      - 1e-4
+      - 1e-3
+      - 1e-2
